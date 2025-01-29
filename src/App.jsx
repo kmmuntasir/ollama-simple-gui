@@ -6,6 +6,7 @@ const ChatInterface = () => {
     const [selectedChat, setSelectedChat] = useState(null);
 
     const textAreaRef = useRef(null);
+    const messagesEndRef = useRef(null); // Ref for scrolling to the bottom
 
     useEffect(() => {
         if (textAreaRef.current) {
@@ -14,6 +15,13 @@ const ChatInterface = () => {
             textAreaRef.current.style.height = `${textAreaRef.current.scrollHeight}px`;
         }
     }, [inputValue]);
+
+    useEffect(() => {
+        // Scroll to the bottom whenever a new message or response is added
+        if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [messages]); // Trigger this effect whenever the messages array changes
 
     const handleSend = async () => {
         const trimmedValue = inputValue.trim();
@@ -119,6 +127,7 @@ const ChatInterface = () => {
                             </div>
                         </div>
                     ))}
+                    <div ref={messagesEndRef} /> {/* This element will scroll into view */}
                 </div>
 
                 {/* Input Area */}
