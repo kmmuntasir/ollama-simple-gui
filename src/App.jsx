@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faTrash, faDownload } from "@fortawesome/free-solid-svg-icons";
+import { faTrash, faDownload, faSpinner } from "@fortawesome/free-solid-svg-icons";
 import models from "./constants/models.js";
 
 const ChatInterface = () => {
@@ -10,6 +10,7 @@ const ChatInterface = () => {
     const [selectedLabel, setSelectedLabel] = useState("1.3b");
     const [availableModels, setAvailableModels] = useState([]);
     const [flashingModel, setFlashingModel] = useState(false);
+    const [downloadingModel, setDownloadingModel] = useState(false);
 
     const textAreaRef = useRef(null);
     const messagesEndRef = useRef(null);
@@ -61,6 +62,7 @@ const ChatInterface = () => {
         const modelName = `${selectedModel.model_identifier}:${selectedLabel}`;
         if (!window.confirm(`Are you sure you want to download ${modelName}?`)) return;
 
+        setDownloadingModel(true); // Start the downloading process
         try {
             const response = await fetch("http://localhost:11434/api/pull", {
                 method: "POST",
@@ -73,6 +75,8 @@ const ChatInterface = () => {
             }
         } catch (error) {
             console.error("Error downloading model:", error);
+        } finally {
+            setDownloadingModel(false); // End the downloading process
         }
     };
 
@@ -147,7 +151,7 @@ const ChatInterface = () => {
 
     const triggerFlashEffect = () => {
         setFlashingModel(true);
-        setTimeout(() => setFlashingModel(false), 1000); // Flash for 1.5 seconds
+        setTimeout(() => setFlashingModel(false), 1000); // Flash for 1 second
     };
 
     return (
@@ -181,11 +185,7 @@ const ChatInterface = () => {
                             return (
                                 <div key={label.label} className="flex items-center gap-2">
                                     <button
-                                        className={`px-3 py-1 rounded-lg text-sm ${
-                                            (selectedLabel === label.label && available)
-                                                ? "bg-blue-600 text-white"
-                                                : "bg-gray-600 text-gray-200"
-                                        } ${available ? "hover:bg-gray-500" : "cursor-not-allowed opacity-50"}`}
+                                        className={`px-3 py-1 rounded-lg text-sm ${selectedLabel === label.label && available ? "bg-blue-600 text-white" : "bg-gray-600 text-gray-200"} ${available ? "hover:bg-gray-500" : "cursor-not-allowed opacity-50"}`}
                                         onClick={() => available && handleLabelChange(label.label)}
                                         disabled={!available || selectedLabel === label.label}
                                     >
@@ -206,8 +206,9 @@ const ChatInterface = () => {
                                             onClick={handleDownload}
                                             className="bg-green-600 hover:bg-green-700 px-2 py-1 text-sm rounded"
                                             title="Download Model"
+                                            disabled={downloadingModel}
                                         >
-                                            <FontAwesomeIcon icon={faDownload} />
+                                            {downloadingModel ? <FontAwesomeIcon icon={faSpinner} spin /> : <FontAwesomeIcon icon={faDownload} />}
                                         </button>
                                     )}
                                 </div>
@@ -218,18 +219,10 @@ const ChatInterface = () => {
 
                 {/* Flashing Model Identifier */}
                 <div
-                    className={`mt-auto text-center text-sm py-2 bg-gray-700 rounded ${
-                        flashingModel ? (
-                            isModelAvailable(selectedModel.model_identifier, selectedLabel)
-                            ? "animate-flash bg-gray-800"
-                            : "animate-flash-unavailable bg-gray-800"
-                        ) : "text-white"
-                    }`}
+                    className={`mt-auto text-center text-sm py-2 bg-gray-700 rounded ${flashingModel ? "animate-flash bg-gray-800" : "text-white"}`}
                 >
-                    Selected Model {!isModelAvailable(selectedModel.model_identifier, selectedLabel) && (<span>(UNAVAILABLE)</span>)}:<br/>
-                    <code>
-                        {`${selectedModel.model_identifier}:${selectedLabel}`}
-                    </code>
+                    Selected Model {!isModelAvailable(selectedModel.model_identifier, selectedLabel) && (<span>(UNAVAILABLE)</span>)}:<br />
+                    <code>{`${selectedModel.model_identifier}:${selectedLabel}`}</code>
                 </div>
             </div>
             {/* Main Chat Area */}
@@ -237,15 +230,8 @@ const ChatInterface = () => {
                 {/* Messages Container */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
                     {messages.map((message) => (
-                        <div
-                            key={message.id}
-                            className={`flex ${message.isUser ? "justify-end" : "justify-start"}`}
-                        >
-                            <div
-                                className={`max-w-3xl p-4 rounded-lg ${
-                                    message.isUser ? "bg-blue-600 ml-20" : "bg-gray-800 mr-20"
-                                }`}
-                            >
+                        <div key={message.id} className={`flex ${message.isUser ? "justify-end" : "justify-start"}`}>
+                            <div className={`max-w-3xl p-4 rounded-lg ${message.isUser ? "bg-blue-600 ml-20" : "bg-gray-800 mr-20"}`}>
                                 <p className="whitespace-pre-wrap">{message.text}</p>
                                 <p className="text-xs mt-1 opacity-70">{message.timestamp}</p>
                             </div>
