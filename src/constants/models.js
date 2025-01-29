@@ -63,3 +63,5 @@ const models = [
         url: "https://ollama.com/library/deepseek-r1",
     },
 ]
+
+export default models;

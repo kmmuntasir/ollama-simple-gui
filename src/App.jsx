@@ -1,32 +1,99 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faTrash, faDownload } from "@fortawesome/free-solid-svg-icons";
+import models from "./constants/models.js";
 
 const ChatInterface = () => {
     const [messages, setMessages] = useState([]);
-    const [inputValue, setInputValue] = useState('');
-    const [selectedChat, setSelectedChat] = useState(null);
+    const [inputValue, setInputValue] = useState("");
+    const [selectedModel, setSelectedModel] = useState(models.find(m => m.model_identifier === "deepseek-coder"));
+    const [selectedLabel, setSelectedLabel] = useState("1.3b");
+    const [availableModels, setAvailableModels] = useState([]);
 
     const textAreaRef = useRef(null);
-    const messagesEndRef = useRef(null); // Ref for scrolling to the bottom
+    const messagesEndRef = useRef(null);
+
+    // Fetch available models from API on load
+    useEffect(() => {
+        fetch("http://localhost:11434/api/tags")
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data.models)) {
+                    setAvailableModels(data.models.map(m => m.model)); // Extract model names
+                } else {
+                    console.error("Unexpected API response format:", data);
+                }
+            })
+            .catch(error => console.error("Error fetching available models:", error));
+    }, []);
 
     useEffect(() => {
         if (textAreaRef.current) {
-            // Adjust the height to fit the content
-            textAreaRef.current.style.height = 'auto';
+            textAreaRef.current.style.height = "auto";
             textAreaRef.current.style.height = `${textAreaRef.current.scrollHeight}px`;
         }
     }, [inputValue]);
 
     useEffect(() => {
-        // Scroll to the bottom whenever a new message or response is added
         if (messagesEndRef.current) {
-            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+            messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
         }
-    }, [messages]); // Trigger this effect whenever the messages array changes
+    }, [messages]);
+
+    const isModelAvailable = (model, label) => {
+        return availableModels.includes(`${model}:${label}`);
+    };
+
+    const handleModelChange = (event) => {
+        const newModel = models.find(m => m.model_identifier === event.target.value);
+        setSelectedModel(newModel);
+        setSelectedLabel(newModel.labels[0].label); // Default to first available label
+    };
+
+    const handleLabelChange = (label) => {
+        setSelectedLabel(label);
+    };
+
+    const handleDownload = async () => {
+        const modelName = `${selectedModel.model_identifier}:${selectedLabel}`;
+        if (!window.confirm(`Are you sure you want to download ${modelName}?`)) return;
+
+        try {
+            const response = await fetch("http://localhost:11434/api/pull", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ model: modelName, stream: false }),
+            });
+            const data = await response.json();
+            if (data.status === "success") {
+                setAvailableModels(prev => [...prev, modelName]);
+            }
+        } catch (error) {
+            console.error("Error downloading model:", error);
+        }
+    };
+
+    const handleDelete = async () => {
+        const modelName = `${selectedModel.model_identifier}:${selectedLabel}`;
+        if (!window.confirm(`Are you sure you want to delete ${modelName}?`)) return;
+
+        try {
+            const response = await fetch("http://localhost:11434/api/delete", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ model: modelName }),
+            });
+            if (response.ok) {
+                setAvailableModels(prev => prev.filter(m => m !== modelName));
+            }
+        } catch (error) {
+            console.error("Error deleting model:", error);
+        }
+    };
 
     const handleSend = async () => {
         const trimmedValue = inputValue.trim();
         if (trimmedValue) {
-            // Add user message
             const newMessage = {
                 id: messages.length + 1,
                 text: trimmedValue,
@@ -34,32 +101,26 @@ const ChatInterface = () => {
                 timestamp: new Date().toLocaleTimeString(),
             };
             setMessages([...messages, newMessage]);
-            setInputValue('');
+            setInputValue("");
 
             try {
-                // Send request to API
-                const response = await fetch('http://localhost:11434/api/generate', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                const response = await fetch("http://localhost:11434/api/generate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        model: 'deepseek-coder:1.3b',
+                        model: `${selectedModel.model_identifier}:${selectedLabel}`,
                         prompt: `${trimmedValue} Respond in JSON`,
                         stream: false,
                         format: {
-                            type: 'object',
-                            properties: {
-                                answer: { type: 'string' },
-                            },
-                            required: ['answer'],
+                            type: "object",
+                            properties: { answer: { type: "string" } },
+                            required: ["answer"],
                         },
                     }),
                 });
 
                 const data = await response.json();
 
-                // Extract the answer and timestamp
                 const botResponse = {
                     id: messages.length + 2,
                     text: JSON.parse(data.response).answer,
@@ -67,16 +128,15 @@ const ChatInterface = () => {
                     timestamp: new Date(data.created_at).toLocaleTimeString(),
                 };
 
-                // Add bot response to the chat
                 setMessages((prev) => [...prev, botResponse]);
             } catch (error) {
-                console.error('Error fetching the response:', error);
+                console.error("Error fetching the response:", error);
             }
         }
     };
 
     const handleKeyDown = (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
+        if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
             handleSend();
         }
@@ -84,28 +144,70 @@ const ChatInterface = () => {
 
     return (
         <div className="flex h-screen bg-gray-900 text-white">
-            {/* Left Sidebar (unchanged) */}
-            <div className="w-64 bg-gray-800 p-4 border-r border-gray-700">
-                <div className="mb-4">
-                    <button className="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-lg">
-                        New Chat
-                    </button>
-                </div>
-                <div className="space-y-2">
-                    {[1, 2, 3].map((chat) => (
-                        <div
-                            key={chat}
-                            className={`p-3 rounded-lg cursor-pointer hover:bg-gray-700 ${
-                                selectedChat === chat ? 'bg-gray-700' : ''
-                            }`}
-                            onClick={() => setSelectedChat(chat)}
-                        >
-                            Chat History {chat}
-                        </div>
+            {/* Sidebar with Selected Model */}
+            <div className="w-64 bg-gray-800 p-4 border-r border-gray-700 flex flex-col">
+                {/* Model Selection Dropdown */}
+                <select
+                    className="bg-gray-700 text-white p-2 rounded mb-4 focus:ring-2 focus:ring-blue-500"
+                    onChange={handleModelChange}
+                    value={selectedModel.model_identifier}
+                >
+                    {models.map((model) => (
+                        <option key={model.model_identifier} value={model.model_identifier}>
+                            {model.model_identifier}
+                        </option>
                     ))}
+                </select>
+
+                {/* Selected Model Info */}
+                <div className="bg-gray-700 p-4 rounded-lg">
+                    <h3 className="text-xl font-semibold text-blue-500">{selectedModel.model_identifier}</h3>
+                    <p className="text-sm text-gray-300 mt-2">{selectedModel.description}</p>
+
+                    {/* Label Selection Buttons */}
+                    <div className="flex flex-wrap gap-2 mt-4">
+                        {selectedModel.labels.map((label) => {
+                            const modelLabel = `${selectedModel.model_identifier}:${label.label}`;
+                            const available = isModelAvailable(selectedModel.model_identifier, label.label);
+
+                            return (
+                                <div key={label.label} className="flex items-center gap-2">
+                                    <button
+                                        className={`px-3 py-1 rounded-lg text-sm ${
+                                            selectedLabel === label.label
+                                                ? "bg-blue-600 text-white"
+                                                : "bg-gray-600 text-gray-200"
+                                        } ${available ? "hover:bg-gray-500" : "cursor-not-allowed opacity-50"}`}
+                                        onClick={() => available && handleLabelChange(label.label)}
+                                        disabled={!available}
+                                    >
+                                        {label.label} ({label.size})
+                                    </button>
+
+                                    {/* Icons for Download/Delete */}
+                                    {available ? (
+                                        <button
+                                            onClick={handleDelete}
+                                            className="bg-red-600 hover:bg-red-700 px-2 py-1 text-sm rounded"
+                                            title="Delete Model"
+                                        >
+                                            <FontAwesomeIcon icon={faTrash} />
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={handleDownload}
+                                            className="bg-green-600 hover:bg-green-700 px-2 py-1 text-sm rounded"
+                                            title="Download Model"
+                                        >
+                                            <FontAwesomeIcon icon={faDownload} />
+                                        </button>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
-
             {/* Main Chat Area */}
             <div className="flex-1 flex flex-col">
                 {/* Messages Container */}
@@ -113,13 +215,11 @@ const ChatInterface = () => {
                     {messages.map((message) => (
                         <div
                             key={message.id}
-                            className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
+                            className={`flex ${message.isUser ? "justify-end" : "justify-start"}`}
                         >
                             <div
                                 className={`max-w-3xl p-4 rounded-lg ${
-                                    message.isUser
-                                        ? 'bg-blue-600 ml-20'
-                                        : 'bg-gray-800 mr-20'
+                                    message.isUser ? "bg-blue-600 ml-20" : "bg-gray-800 mr-20"
                                 }`}
                             >
                                 <p className="whitespace-pre-wrap">{message.text}</p>
@@ -127,7 +227,7 @@ const ChatInterface = () => {
                             </div>
                         </div>
                     ))}
-                    <div ref={messagesEndRef} /> {/* This element will scroll into view */}
+                    <div ref={messagesEndRef} />
                 </div>
 
                 {/* Input Area */}
