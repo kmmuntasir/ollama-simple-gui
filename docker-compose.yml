@@ -19,7 +19,7 @@ services:
     working_dir: /app
     env_file:
       - .env
-    command: sh -c "npm install -g nodemon && npm install --verbose && sleep infinity"
+    command: sh -c "npm install -g nodemon && npm install --verbose && npm run dev && sleep infinity"
     depends_on:
       - ollama
 

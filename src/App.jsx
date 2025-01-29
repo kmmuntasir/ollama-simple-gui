@@ -219,7 +219,11 @@ const ChatInterface = () => {
 
                 {/* Flashing Model Identifier */}
                 <div
-                    className={`mt-auto text-center text-sm py-2 bg-gray-700 rounded ${flashingModel ? "animate-flash bg-gray-800" : "text-white"}`}
+                    className={`mt-auto text-center text-sm py-2 bg-gray-700 rounded ${flashingModel ? (
+                            isModelAvailable(selectedModel.model_identifier, selectedLabel)
+                        ? "animate-flash bg-gray-800"
+                        : "animate-flash-unavailable bg-gray-800"
+                    ) : "text-white"}`}
                 >
                     Selected Model {!isModelAvailable(selectedModel.model_identifier, selectedLabel) && (<span>(UNAVAILABLE)</span>)}:<br />
                     <code>{`${selectedModel.model_identifier}:${selectedLabel}`}</code>
