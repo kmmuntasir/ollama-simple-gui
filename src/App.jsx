@@ -15,29 +15,55 @@ const ChatInterface = () => {
         }
     }, [inputValue]);
 
-    const handleSend = () => {
+    const handleSend = async () => {
         const trimmedValue = inputValue.trim();
         if (trimmedValue) {
+            // Add user message
             const newMessage = {
                 id: messages.length + 1,
                 text: trimmedValue,
                 isUser: true,
                 timestamp: new Date().toLocaleTimeString(),
             };
-
             setMessages([...messages, newMessage]);
             setInputValue('');
 
-            // Simulate bot response
-            setTimeout(() => {
+            try {
+                // Send request to API
+                const response = await fetch('http://localhost:11434/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model: 'deepseek-coder:1.3b',
+                        prompt: `${trimmedValue} Respond in JSON`,
+                        stream: false,
+                        format: {
+                            type: 'object',
+                            properties: {
+                                answer: { type: 'string' },
+                            },
+                            required: ['answer'],
+                        },
+                    }),
+                });
+
+                const data = await response.json();
+
+                // Extract the answer and timestamp
                 const botResponse = {
                     id: messages.length + 2,
-                    text: 'This is a simulated response',
+                    text: JSON.parse(data.response).answer,
                     isUser: false,
-                    timestamp: new Date().toLocaleTimeString(),
+                    timestamp: new Date(data.created_at).toLocaleTimeString(),
                 };
-                setMessages(prev => [...prev, botResponse]);
-            }, 1000);
+
+                // Add bot response to the chat
+                setMessages((prev) => [...prev, botResponse]);
+            } catch (error) {
+                console.error('Error fetching the response:', error);
+            }
         }
     };
 
