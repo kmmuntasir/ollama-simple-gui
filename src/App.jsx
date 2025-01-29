@@ -9,6 +9,7 @@ const ChatInterface = () => {
     const [selectedModel, setSelectedModel] = useState(models.find(m => m.model_identifier === "deepseek-coder"));
     const [selectedLabel, setSelectedLabel] = useState("1.3b");
     const [availableModels, setAvailableModels] = useState([]);
+    const [flashingModel, setFlashingModel] = useState(false);
 
     const textAreaRef = useRef(null);
     const messagesEndRef = useRef(null);
@@ -48,10 +49,12 @@ const ChatInterface = () => {
         const newModel = models.find(m => m.model_identifier === event.target.value);
         setSelectedModel(newModel);
         setSelectedLabel(newModel.labels[0].label); // Default to first available label
+        triggerFlashEffect();
     };
 
     const handleLabelChange = (label) => {
         setSelectedLabel(label);
+        triggerFlashEffect();
     };
 
     const handleDownload = async () => {
@@ -142,6 +145,11 @@ const ChatInterface = () => {
         }
     };
 
+    const triggerFlashEffect = () => {
+        setFlashingModel(true);
+        setTimeout(() => setFlashingModel(false), 1000); // Flash for 1.5 seconds
+    };
+
     return (
         <div className="flex h-screen bg-gray-900 text-white">
             {/* Sidebar with Selected Model */}
@@ -166,7 +174,7 @@ const ChatInterface = () => {
 
                     {/* Label Selection Buttons */}
                     <div className="flex flex-wrap gap-2 mt-4">
-                        {selectedModel.labels.map((label) => {
+                        {selectedModel.labels?.map((label) => {
                             const modelLabel = `${selectedModel.model_identifier}:${label.label}`;
                             const available = isModelAvailable(selectedModel.model_identifier, label.label);
 
@@ -174,12 +182,12 @@ const ChatInterface = () => {
                                 <div key={label.label} className="flex items-center gap-2">
                                     <button
                                         className={`px-3 py-1 rounded-lg text-sm ${
-                                            selectedLabel === label.label
+                                            (selectedLabel === label.label && available)
                                                 ? "bg-blue-600 text-white"
                                                 : "bg-gray-600 text-gray-200"
                                         } ${available ? "hover:bg-gray-500" : "cursor-not-allowed opacity-50"}`}
                                         onClick={() => available && handleLabelChange(label.label)}
-                                        disabled={!available}
+                                        disabled={!available || selectedLabel === label.label}
                                     >
                                         {label.label} ({label.size})
                                     </button>
@@ -206,6 +214,22 @@ const ChatInterface = () => {
                             );
                         })}
                     </div>
+                </div>
+
+                {/* Flashing Model Identifier */}
+                <div
+                    className={`mt-auto text-center text-sm py-2 bg-gray-700 rounded ${
+                        flashingModel ? (
+                            isModelAvailable(selectedModel.model_identifier, selectedLabel)
+                            ? "animate-flash bg-gray-800"
+                            : "animate-flash-unavailable bg-gray-800"
+                        ) : "text-white"
+                    }`}
+                >
+                    Selected Model {!isModelAvailable(selectedModel.model_identifier, selectedLabel) && (<span>(UNAVAILABLE)</span>)}:<br/>
+                    <code>
+                        {`${selectedModel.model_identifier}:${selectedLabel}`}
+                    </code>
                 </div>
             </div>
             {/* Main Chat Area */}

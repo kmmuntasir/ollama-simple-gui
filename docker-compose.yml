@@ -20,6 +20,8 @@ services:
     env_file:
       - .env
     command: sh -c "npm install -g nodemon && npm install --verbose && sleep infinity"
+    depends_on:
+      - ollama
 
 volumes:
   ollama_data:

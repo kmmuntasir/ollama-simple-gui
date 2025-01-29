@@ -1,0 +1,31 @@
+@keyframes flash {
+    0% {
+        background-color: #000; /* Dark background */
+    }
+    50% {
+        background-color: #1e40af; /* Light blue */
+    }
+    100% {
+        background-color: #000; /* Dark background */
+    }
+}
+
+@keyframes flash-unavailable {
+    0% {
+        background-color: #000; /* Dark background */
+    }
+    50% {
+        background-color: #af1e1e; /* Light blue */
+    }
+    100% {
+        background-color: #000; /* Dark background */
+    }
+}
+
+.animate-flash {
+    animation: flash 0.3s alternate infinite;
+}
+
+.animate-flash-unavailable {
+    animation: flash-unavailable 0.3s alternate infinite;
+}
