@@ -1,0 +1,30 @@
+services:
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT}:${OLLAMA_PORT}"
+    volumes:
+      - ollama_data:/root/.ollama  # Persist model data
+  ollamaSimpleGui:
+    container_name: ollamaSimpleGui
+    networks:
+      - ollamaSimpleGuiNetwork
+    image: node:20-buster-slim
+    volumes:
+      - ./:/app
+    ports:
+      - "${GUI_PORT}:${GUI_PORT}"
+    working_dir: /app
+    env_file:
+      - .env
+    command: sh -c "npm install -g nodemon && npm install --verbose && sleep infinity"
+
+volumes:
+  ollama_data:
+    driver: local
+
+networks:
+  ollamaSimpleGuiNetwork:
+    driver: bridge
