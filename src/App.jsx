@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
-import Sidebar from "./components/Sidebar.jsx";
+import React, { useState, useEffect } from "react";
+import Sidebar from "./components/Sidebar";
 import ChatInterface from "./components/ChatInterface";
+import Notification from "./components/Notification";
 import models from "./constants/models.js";
 
 const App = () => {
@@ -11,17 +12,26 @@ const App = () => {
     const [availableModels, setAvailableModels] = useState([]);
     const [flashingModel, setFlashingModel] = useState(false);
     const [downloadingModel, setDownloadingModel] = useState(false);
+    const [error, setError] = useState(null);
 
-    // Model management effects and functions
+    // Fetch available models on mount
     useEffect(() => {
         fetch("http://localhost:11434/api/tags")
-            .then(res => res.json())
+            .then(async (res) => {
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    throw new Error(`${errorData.error} (${res.statusText})`);
+                }
+                return res.json();
+            })
             .then(data => {
                 if (Array.isArray(data.models)) {
                     setAvailableModels(data.models.map(m => m.model));
                 }
             })
-            .catch(console.error);
+            .catch(error => {
+                setError(error.message);
+            });
     }, []);
 
     const isModelAvailable = (model, label) => {
@@ -43,14 +53,20 @@ const App = () => {
     const handleDownload = async (modelName) => {
         setDownloadingModel(true);
         try {
-            await fetch("http://localhost:11434/api/pull", {
+            const response = await fetch("http://localhost:11434/api/pull", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ model: modelName, stream: false }),
             });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`${errorData.error} (${response.statusText})`);
+            }
+
             setAvailableModels(prev => [...prev, modelName]);
         } catch (error) {
-            console.error("Download error:", error);
+            setError(error.message);
         } finally {
             setDownloadingModel(false);
         }
@@ -58,33 +74,39 @@ const App = () => {
 
     const handleDelete = async (modelName) => {
         try {
-            await fetch("http://localhost:11434/api/delete", {
+            const response = await fetch("http://localhost:11434/api/delete", {
                 method: "DELETE",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ model: modelName }),
             });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`${errorData.error} (${response.statusText})`);
+            }
+
             setAvailableModels(prev => prev.filter(m => m !== modelName));
         } catch (error) {
-            console.error("Delete error:", error);
+            setError(error.message);
         }
     };
 
-    // Chat functionality
     const handleSend = async () => {
         const trimmedValue = inputValue.trim();
         if (!trimmedValue) return;
 
+        // Add user message
         const newMessage = {
             id: messages.length + 1,
             text: trimmedValue,
             isUser: true,
             timestamp: new Date().toLocaleTimeString(),
         };
-
         setMessages(prev => [...prev, newMessage]);
         setInputValue("");
 
         try {
+            // API call
             const response = await fetch("http://localhost:11434/api/generate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -100,6 +122,12 @@ const App = () => {
                 }),
             });
 
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`${errorData.error} (${response.statusText})`);
+            }
+
+            // Handle response
             const data = await response.json();
             const botResponse = {
                 id: messages.length + 2,
@@ -107,10 +135,10 @@ const App = () => {
                 isUser: false,
                 timestamp: new Date(data.created_at).toLocaleTimeString(),
             };
-
             setMessages(prev => [...prev, botResponse]);
         } catch (error) {
-            console.error("API error:", error);
+            console.error("Chat error:", error);
+            setError(error.message);
         }
     };
 
@@ -121,6 +149,8 @@ const App = () => {
 
     return (
         <div className="flex h-screen bg-gray-900 text-white">
+            <Notification error={error} onDismiss={() => setError(null)} />
+
             <Sidebar
                 models={models}
                 selectedModel={selectedModel}
