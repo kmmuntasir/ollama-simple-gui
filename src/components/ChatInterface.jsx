@@ -50,6 +50,7 @@ const ChatInterface = ({ messages, inputValue, onInputChange, onSend, isSending 
                         placeholder="Type your message... (Shift + Enter for new line)"
                         className="flex-1 p-3 bg-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none min-h-[44px] max-h-48"
                         rows={1}
+                        disabled={isSending}
                     />
                     <button
                         onClick={onSend}
@@ -57,7 +58,7 @@ const ChatInterface = ({ messages, inputValue, onInputChange, onSend, isSending 
                         disabled={isSending}
                     >
                         {isSending ? (
-                            <FontAwesomeIcon icon={faSpinner} spin />
+                            <FontAwesomeIcon icon={faSpinner} spin/>
                         ) : (
                             "Send"
                         )}

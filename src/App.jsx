@@ -105,20 +105,26 @@ const App = () => {
         setMessages(prev => [...prev, newMessage]);
         setInputValue("");
 
+        // Add temporary bot message for streaming
+        const botMessageId = messages.length + 2;
+        setMessages(prev => [
+            ...prev,
+            {
+                id: botMessageId,
+                text: "",
+                isUser: false,
+                timestamp: new Date().toLocaleTimeString(),
+            },
+        ]);
+
         try {
-            // API call
             const response = await fetch("http://localhost:11434/api/generate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     model: `${selectedModel.model_identifier}:${selectedLabel}`,
-                    prompt: `${trimmedValue} Respond in JSON`,
-                    stream: false,
-                    format: {
-                        type: "object",
-                        properties: { answer: { type: "string" } },
-                        required: ["answer"],
-                    },
+                    prompt: trimmedValue,
+                    stream: true,
                 }),
             });
 
@@ -127,18 +133,56 @@ const App = () => {
                 throw new Error(`${errorData.error} (${response.statusText})`);
             }
 
-            // Handle response
-            const data = await response.json();
-            const botResponse = {
-                id: messages.length + 2,
-                text: JSON.parse(data.response).answer,
-                isUser: false,
-                timestamp: new Date(data.created_at).toLocaleTimeString(),
-            };
-            setMessages(prev => [...prev, botResponse]);
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = "";
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+
+                // Process complete JSON objects in the buffer
+                let boundary;
+                while ((boundary = buffer.indexOf('\n')) >= 0) {
+                    const chunk = buffer.slice(0, boundary);
+                    buffer = buffer.slice(boundary + 1);
+
+                    if (chunk.trim()) {
+                        try {
+                            const data = JSON.parse(chunk);
+                            setMessages(prev => prev.map(msg =>
+                                msg.id === botMessageId
+                                    ? { ...msg, text: msg.text + data.response }
+                                    : msg
+                            ));
+                        } catch (error) {
+                            console.error("Error parsing chunk:", error);
+                        }
+                    }
+                }
+            }
+
+            // Final update with remaining buffer
+            if (buffer.trim()) {
+                try {
+                    const data = JSON.parse(buffer);
+                    setMessages(prev => prev.map(msg =>
+                        msg.id === botMessageId
+                            ? { ...msg, text: msg.text + data.response }
+                            : msg
+                    ));
+                } catch (error) {
+                    console.error("Error parsing final chunk:", error);
+                }
+            }
+
         } catch (error) {
             console.error("Chat error:", error);
             setError(error.message);
+            // Remove temporary bot message if error occurs
+            setMessages(prev => prev.filter(msg => msg.id !== botMessageId));
         }
     };
 
