@@ -1,6 +1,6 @@
 import React from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faTrash, faDownload } from "@fortawesome/free-solid-svg-icons";
+import { faSpinner, faTrash, faDownload } from "@fortawesome/free-solid-svg-icons";
 
 const Sidebar = ({
                      models,
@@ -15,15 +15,15 @@ const Sidebar = ({
                      onDelete,
                      isModelAvailable
                  }) => {
-    const handleDownload = () => {
-        const modelName = `${selectedModel.model_identifier}:${selectedLabel}`;
+    const handleDownload = (label) => {
+        const modelName = `${selectedModel.model_identifier}:${label}`;
         if (window.confirm(`Download ${modelName}?`)) {
             onDownload(modelName);
         }
     };
 
-    const handleDelete = () => {
-        const modelName = `${selectedModel.model_identifier}:${selectedLabel}`;
+    const handleDelete = (label) => {
+        const modelName = `${selectedModel.model_identifier}:${label}`;
         if (window.confirm(`Delete ${modelName}?`)) {
             onDelete(modelName);
         }
@@ -72,7 +72,7 @@ const Sidebar = ({
 
                                 {available ? (
                                     <button
-                                        onClick={handleDelete}
+                                        onClick={() => {handleDelete(label.label)}}
                                         className="bg-red-600 hover:bg-red-700 px-2 py-1 text-sm rounded"
                                         title="Delete Model"
                                     >
@@ -80,12 +80,12 @@ const Sidebar = ({
                                     </button>
                                 ) : (
                                     <button
-                                        onClick={handleDownload}
+                                        onClick={() => {handleDownload(label.label)}}
                                         className="bg-green-600 hover:bg-green-700 px-2 py-1 text-sm rounded"
                                         title="Download Model"
                                         disabled={downloadingModel}
                                     >
-                                        <FontAwesomeIcon icon={downloadingModel ? faSpinner : faDownload} />
+                                        <FontAwesomeIcon icon={downloadingModel ? faSpinner : faDownload} spin={downloadingModel} />
                                     </button>
                                 )}
                             </div>
