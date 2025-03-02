@@ -16,6 +16,7 @@ services:
       - ./:/app
     ports:
       - "${GUI_PORT}:${GUI_PORT}"
+      - "3000:3000"
     working_dir: /app
     env_file:
       - .env

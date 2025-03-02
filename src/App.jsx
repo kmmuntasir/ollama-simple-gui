@@ -8,7 +8,7 @@ const App = () => {
     const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState("");
     const [selectedModel, setSelectedModel] = useState(models.find(m => m.model_identifier === "deepseek-r1"));
-    const [selectedLabel, setSelectedLabel] = useState("1.5b");
+    const [selectedLabel, setSelectedLabel] = useState("7b");
     const [availableModels, setAvailableModels] = useState([]);
     const [flashingModel, setFlashingModel] = useState(false);
     const [downloadingModel, setDownloadingModel] = useState(false);
@@ -16,7 +16,7 @@ const App = () => {
 
     // Fetch available models on mount
     useEffect(() => {
-        fetch("http://localhost:11434/api/tags")
+        fetch("/api/ollama")
             .then(async (res) => {
                 if (!res.ok) {
                     const errorData = await res.json();
@@ -33,6 +33,7 @@ const App = () => {
                 setError(error.message);
             });
     }, []);
+
 
     const isModelAvailable = (model, label) => {
         return availableModels.includes(`${model}:${label}`);
@@ -53,10 +54,10 @@ const App = () => {
     const handleDownload = async (modelName) => {
         setDownloadingModel(true);
         try {
-            const response = await fetch("http://localhost:11434/api/pull", {
+            const response = await fetch("/api/ollama", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ model: modelName, stream: false }),
+                body: JSON.stringify({ action: "download", model: modelName }),
             });
 
             if (!response.ok) {
@@ -74,7 +75,7 @@ const App = () => {
 
     const handleDelete = async (modelName) => {
         try {
-            const response = await fetch("http://localhost:11434/api/delete", {
+            const response = await fetch("/api/ollama", {
                 method: "DELETE",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ model: modelName }),
@@ -95,7 +96,6 @@ const App = () => {
         const trimmedValue = inputValue.trim();
         if (!trimmedValue) return;
 
-        // Add user message
         const newMessage = {
             id: messages.length + 1,
             text: trimmedValue,
@@ -105,7 +105,6 @@ const App = () => {
         setMessages(prev => [...prev, newMessage]);
         setInputValue("");
 
-        // Add temporary bot message for streaming
         const botMessageId = messages.length + 2;
         setMessages(prev => [
             ...prev,
@@ -118,10 +117,11 @@ const App = () => {
         ]);
 
         try {
-            const response = await fetch("http://localhost:11434/api/generate", {
+            const response = await fetch("/api/ollama", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
+                    action: "generate",
                     model: `${selectedModel.model_identifier}:${selectedLabel}`,
                     prompt: trimmedValue,
                     stream: true,
@@ -143,7 +143,6 @@ const App = () => {
 
                 buffer += decoder.decode(value, { stream: true });
 
-                // Process complete JSON objects in the buffer
                 let boundary;
                 while ((boundary = buffer.indexOf('\n')) >= 0) {
                     const chunk = buffer.slice(0, boundary);
@@ -164,7 +163,6 @@ const App = () => {
                 }
             }
 
-            // Final update with remaining buffer
             if (buffer.trim()) {
                 try {
                     const data = JSON.parse(buffer);
@@ -181,7 +179,6 @@ const App = () => {
         } catch (error) {
             console.error("Chat error:", error);
             setError(error.message);
-            // Remove temporary bot message if error occurs
             setMessages(prev => prev.filter(msg => msg.id !== botMessageId));
         }
     };
