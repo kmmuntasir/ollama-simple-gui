@@ -16,7 +16,7 @@ const App = () => {
 
     // Fetch available models on mount
     useEffect(() => {
-        fetch("http://localhost:11434/api/tags")
+        fetch("/api/ollama/tags")
             .then(async (res) => {
                 if (!res.ok) {
                     const errorData = await res.json();
@@ -53,7 +53,7 @@ const App = () => {
     const handleDownload = async (modelName) => {
         setDownloadingModel(true);
         try {
-            const response = await fetch("http://localhost:11434/api/pull", {
+            const response = await fetch("/api/ollama/pull", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ model: modelName, stream: false }),
@@ -74,7 +74,7 @@ const App = () => {
 
     const handleDelete = async (modelName) => {
         try {
-            const response = await fetch("http://localhost:11434/api/delete", {
+            const response = await fetch("/api/ollama/delete", {
                 method: "DELETE",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ model: modelName }),
@@ -118,7 +118,7 @@ const App = () => {
         ]);
 
         try {
-            const response = await fetch("http://localhost:11434/api/generate", {
+            const response = await fetch("/api/ollama/generate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

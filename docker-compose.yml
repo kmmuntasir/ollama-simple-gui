@@ -7,6 +7,9 @@ services:
       - "${OLLAMA_PORT}:${OLLAMA_PORT}"
     volumes:
       - ollama_data:/root/.ollama  # Persist model data
+    networks:  # Add this section
+      - ollamaSimpleGuiNetwork
+
   ollamaSimpleGui:
     container_name: ollamaSimpleGui
     networks:
@@ -16,10 +19,11 @@ services:
       - ./:/app
     ports:
       - "${GUI_PORT}:${GUI_PORT}"
+      - "${BACKEND_PORT}:${BACKEND_PORT}"
     working_dir: /app
     env_file:
       - .env
-    command: sh -c "npm install -g nodemon && npm install --verbose && npm run dev"
+    command: sh -c "npm install -g nodemon && npm install --verbose && npm run start"
     depends_on:
       - ollama
 
